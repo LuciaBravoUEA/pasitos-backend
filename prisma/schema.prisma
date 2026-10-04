@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(uuid()) @db.Uuid
+  username      String          @unique
+  password      String
+  passwordHash  String?
+  full_name     String
+  email         String
+  role_code     String          @default("estudiante")
+  role_name     String          @default("Estudiante")
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  login_events  LoginEvent[]
+  user_sessions UserSession[]
+  routines      Routine[]
+  studentGuardians StudentGuardian[] @relation("StudentGuardians")
+  guardianStudents StudentGuardian[] @relation("GuardianStudents")
+  studentTeachers StudentTeacher[] @relation("StudentTeachers")
+  teacherStudents StudentTeacher[] @relation("TeacherStudents")
+  taskCompletions TaskCompletion[]
+  taskActivityEvents TaskActivityEvent[]
+
+  @@map("users")
+}
+
+model LoginEvent {
+  id         String   @id @db.Uuid
+  user_id    String   @db.Uuid
+  username   String
+  event_type String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("login_events")
+}
+
+model UserSession {
+  id            String   @id @db.Uuid
+  user_id       String   @db.Uuid
+  session_token String   @unique
+  cookie_name   String
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  expires_at    DateTime @db.Timestamptz(6)
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_sessions")
+}
+
+model Routine {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  title       String
+  description String?
+  category    String
+  points      Int
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tasks       Task[]
+
+  @@index([userId, createdAt])
+  @@map("routines")
+}
+
+model Task {
+  id          String   @id @default(uuid()) @db.Uuid
+  routineId   String   @db.Uuid
+  title       String
+  description String?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  routine     Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  completions TaskCompletion[]
+
+  @@index([routineId, position])
+  @@map("tasks")
+}
+
+model StudentGuardian {
+  id         String   @id @default(uuid()) @db.Uuid
+  studentId  String   @db.Uuid
+  guardianId  String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  student    User     @relation("StudentGuardians", fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  guardian   User     @relation("GuardianStudents", fields: [guardianId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([studentId, guardianId])
+  @@index([guardianId, studentId])
+  @@map("student_guardians")
+}
+
+model StudentTeacher {
+  id         String   @id @default(uuid()) @db.Uuid
+  studentId  String   @db.Uuid
+  teacherId  String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  student    User     @relation("StudentTeachers", fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teacher    User     @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([studentId, teacherId])
+  @@index([teacherId, studentId])
+  @@map("student_teachers")
+}
+
+model TaskCompletion {
+  id           String   @id @default(uuid()) @db.Uuid
+  studentId    String   @db.Uuid
+  taskId       String   @db.Uuid
+  completed    Boolean  @default(true)
+  completedAt  DateTime?
+  activityDate DateTime @db.Date
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  student      User     @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([studentId, taskId, activityDate])
+  @@index([studentId, activityDate])
+  @@index([taskId, activityDate])
+  @@map("task_completions")
+}
+
+model TaskActivityEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  studentId    String   @db.Uuid
+  taskId        String   @db.Uuid
+  routineId     String   @db.Uuid
+  taskTitle     String
+  routineTitle  String
+  completed     Boolean
+  activityDate  DateTime @db.Date
+  recordedAt    DateTime @default(now()) @db.Timestamptz(6)
+  student       User     @relation(fields: [studentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([studentId, activityDate, recordedAt])
+  @@index([studentId, recordedAt])
+  @@map("task_activity_events")
+}

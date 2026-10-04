@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # PostgreSQL ya corre en un contenedor externo llamado "pasitos-postgres"
+  # (credenciales configuradas mediante variables de entorno).
+  # para evitar duplicar el contenedor; se accede vía host.docker.internal:5432.
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: pasitos-keycloak
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://pasitos-postgres:5432/pasitos_keycloak_db
+      KC_DB_USERNAME: pasitos
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?Configura POSTGRES_PASSWORD}
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Configura KEYCLOAK_ADMIN_PASSWORD}
+      KC_PROXY: edge
+      KC_HOSTNAME_STRICT: false
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - pasitos-network
+      - pasitos-host
+    command:
+      - start-dev
+
+  pasitos-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    container_name: pasitos-backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Configura DATABASE_URL}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: pasitos-magicos
+      KEYCLOAK_CLIENT_ID: pasitos-app
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-your-client-secret-here}
+      NODE_ENV: development
+      PORT: 3000
+    ports:
+      - "3001:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - keycloak
+    networks:
+      - pasitos-network
+      - pasitos-host
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - type: volume
+        target: /app/.next
+        volume:
+          nocopy: true
+    command: sh -c "./node_modules/.bin/prisma generate && ./node_modules/.bin/next dev --hostname 0.0.0.0 --webpack"
+
+networks:
+  pasitos-network:
+    driver: bridge
+  pasitos-host:
+    external: true
+    name: pasitos-magicos_default
+
