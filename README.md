@@ -23,7 +23,7 @@ El backend estará disponible en: `http://localhost:3000`
 
 **Credenciales por defecto:**
 - Admin Keycloak: `admin` / `admin`
-- Usuario de prueba: `futbolista` / `ExamplePassword123!`
+- Usuario de prueba: `evam.jampa` / `PasitosJampa#2026`
 
 ## Desarrollo local (sin Docker)
 
@@ -41,8 +41,8 @@ Abierto en: `http://localhost:3000`
 **POST /api/auth/mobile/login**
 ```json
 {
-  "username": "futbolista",
-  "password": "ExamplePassword123!"
+  "username": "evam.jampa",
+  "password": "PasitosJampa#2026"
 }
 ```
 
